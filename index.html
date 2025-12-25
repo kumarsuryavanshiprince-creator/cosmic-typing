@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cosmic Typing - Futuristic Interactive Art</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Arial', sans-serif;
+            cursor: none;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 14px;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #cursor-glow {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, rgba(0,255,255,0.8) 0%, transparent 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">Type • Click • Mouse flow • "PRINCE" = explosion ✨ • Backspace = letters fly away!</div>
+    <div id="cursor-glow"></div>
+    <script>
+        const canvas = document.createElement('canvas');
+        document.body.appendChild(canvas);
+        const ctx = canvas.getContext('2d');
+        const cursorGlow = document.getElementById('cursor-glow');
+
+        let mouseX = canvas.width / 2;
+        let mouseY = canvas.height / 2;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            cursorGlow.style.left = mouseX + 'px';
+            cursorGlow.style.top = mouseY + 'px';
+        });
+        window.addEventListener('mouseout', () => cursorGlow.style.opacity = '0');
+        window.addEventListener('mouseover', () => cursorGlow.style.opacity = '1');
+
+        // Particles
+        const particles = [];
+        const numParticles = 1000;
+        const normalColors = ['#00ffff', '#ff00ff', '#ffff00', '#ff69b4', '#9370db'];
+        const princeColors = ['#00f0ff', '#00aaff', '#0055ff', '#ffffff', '#000000'];
+        let currentColors = normalColors;
+
+        class Particle {
+            constructor() {
+                this.reset();
+                this.exploding = false;
+                this.explodeVx = 0;
+                this.explodeVy = 0;
+            }
+            reset() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2 + 0.5;
+                this.color = currentColors[Math.floor(Math.random() * currentColors.length)];
+                this.opacity = Math.random() * 0.8 + 0.2;
+                this.twinkleSpeed = Math.random() * 0.03 + 0.01;
+                this.twinklePhase = Math.random() * Math.PI * 2;
+            }
+            triggerExplosion() {
+                this.exploding = true;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 4;
+                this.explodeVx = Math.cos(angle) * speed;
+                this.explodeVy = Math.sin(angle) * speed;
+            }
+            update() {
+                if (this.exploding) {
+                    this.x += this.explodeVx;
+                    this.y += this.explodeVy;
+                    this.explodeVx *= 0.98;
+                    this.explodeVy *= 0.98;
+                    this.opacity *= 0.98;
+                } else {
+                    const dx = mouseX - this.x;
+                    const dy = mouseY - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    const attractionRadius = 150;
+                    const attractionStrength = 0.8;
+                    if (dist < attractionRadius && dist > 0) {
+                        const force = (attractionRadius - dist) / attractionRadius * attractionStrength;
+                        this.vx += (dx / dist) * force;
+                        this.vy += (dy / dist) * force;
+                    }
+
+                    this.x += this.vx;
+                    this.y += this.vy;
+
+                    if (this.x < 0) this.x = canvas.width;
+                    if (this.x > canvas.width) this.x = 0;
+                    if (this.y < 0) this.y = canvas.height;
+                    if (this.y > canvas.height) this.y = 0;
+
+                    this.twinklePhase += this.twinkleSpeed;
+                    this.currentOpacity = this.opacity * (0.7 + 0.3 * Math.sin(this.twinklePhase));
+                }
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.globalAlpha = this.exploding ? this.opacity : this.currentOpacity;
+                ctx.shadowBlur = this.exploding ? 20 : 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < numParticles; i++) {
+            particles.push(new Particle());
+        }
+
+        // Letters
+        const letters = [];
+
+        class Letter {
+            constructor(char, x, y) {
+                this.char = char;
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotSpeed = (Math.random() - 0.5) * 0.08;
+                this.size = Math.random() * 40 + 70;
+                this.color = currentColors[Math.floor(Math.random() * currentColors.length)];
+                this.opacity = 1;
+                this.flyingAway = false; // New flag
+                this.flyVx = 0;
+                this.flyVy = 0;
+            }
+            triggerFlyAway() {
+                this.flyingAway = true;
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 10 + 8; // Strong push
+                this.flyVx = Math.cos(angle) * speed;
+                this.flyVy = Math.sin(angle) * speed;
+            }
+            update() {
+                if (this.flyingAway) {
+                    this.x += this.flyVx;
+                    this.y += this.flyVy;
+                    this.flyVx *= 1.02; // Accelerate outward
+                    this.flyVy *= 1.02;
+                    this.opacity *= 0.96; // Fade out
+                    this.rotation += 0.2; // Spin faster
+                } else {
+                    const dx = mouseX - this.x;
+                    const dy = mouseY - this.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 225 && dist > 0) {
+                        const force = (225 - dist) / 225 * 0.4;
+                        this.vx += (dx / dist) * force;
+                        this.vy += (dy / dist) * force;
+                    }
+
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    this.rotation += this.rotSpeed;
+                    this.vx *= 0.98;
+                    this.vy *= 0.98;
+                }
+
+                // Remove if far off-screen and flying away
+                if (this.flyingAway && 
+                    (this.x < -500 || this.x > canvas.width + 500 || 
+                     this.y < -500 || this.y > canvas.height + 500 || 
+                     this.opacity < 0.01)) {
+                    return false; // Mark for removal
+                }
+                return true;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.font = `bold ${this.size}px Arial`;
+                ctx.fillStyle = this.color;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.globalAlpha = this.opacity;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = this.color;
+                ctx.fillText(this.char, 0, 0);
+                ctx.shadowBlur = 50;
+                ctx.globalAlpha = 0.4 * this.opacity;
+                ctx.fillText(this.char, 0, 0);
+                ctx.restore();
+            }
+        }
+
+        // Click spawn
+        canvas.addEventListener('click', (e) => {
+            const char = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+            letters.push(new Letter(char, e.clientX, e.clientY));
+        });
+
+        // Secret PRINCE + typing + BACKSPACE magic
+        let typedBuffer = '';
+        const secretWord = 'PRINCE';
+        let princeMode = false;
+        let princeTimer = 0;
+
+        function triggerPrinceMode() {
+            princeMode = true;
+            princeTimer = 300;
+            document.body.style.background = '#000811';
+            currentColors = princeColors;
+            particles.forEach(p => {
+                p.color = currentColors[Math.floor(Math.random() * currentColors.length)];
+            });
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            particles.forEach(p => {
+                const dx = centerX - p.x;
+                const dy = centerY - p.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist > 0) {
+                    const speed = Math.min(15, 300 / dist);
+                    p.explodeVx = (dx / dist) * speed;
+                    p.explodeVy = (dy / dist) * speed;
+                }
+                p.exploding = true;
+                p.opacity = 1;
+            });
+        }
+
+        function resetToNormal() {
+            princeMode = false;
+            document.body.style.background = '#000';
+            currentColors = normalColors;
+            particles.forEach(p => {
+                p.color = currentColors[Math.floor(Math.random() * currentColors.length)];
+                p.exploding = false;
+                p.opacity = Math.random() * 0.8 + 0.2;
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Backspace') {
+                // NEW: Make all letters fly away dramatically
+                letters.forEach(letter => {
+                    letter.triggerFlyAway();
+                });
+                typedBuffer = ''; // Also clear buffer
+                return;
+            }
+
+            const key = e.key.toUpperCase();
+            if (key.length === 1 && key >= 'A' && key <= 'Z') {
+                typedBuffer += key;
+                if (typedBuffer.length > secretWord.length) {
+                    typedBuffer = typedBuffer.slice(-secretWord.length);
+                }
+                if (typedBuffer === secretWord) {
+                    triggerPrinceMode();
+                    typedBuffer = '';
+                }
+
+                // Spawn letter
+                const x = canvas.width / 2 + (Math.random() - 0.5) * 300;
+                const y = canvas.height / 2 + (Math.random() - 0.5) * 300;
+                letters.push(new Letter(key, x, y));
+            }
+        });
+
+        function animate() {
+            if (princeMode) {
+                ctx.fillStyle = 'rgba(0, 10, 30, 0.1)';
+            } else {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.06)';
+            }
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Update and filter letters (remove flown away ones)
+            for (let i = letters.length - 1; i >= 0; i--) {
+                if (!letters[i].update()) {
+                    letters.splice(i, 1);
+                } else {
+                    letters[i].draw();
+                }
+            }
+
+            if (princeMode) {
+                princeTimer--;
+                if (princeTimer <= 0) {
+                    resetToNormal();
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
