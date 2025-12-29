@@ -39,6 +39,7 @@ No external libraries used.
 | Keyboard Typing | Creates animated letters |
 | Type `PRINCE` | Activates explosion mode |
 | Backspace | Letters fly away |
+live link - https://kumarsuryavanshiprince-creator.github.io/cosmic-typing/
 
 ---
 
